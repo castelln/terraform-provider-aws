@@ -77,6 +77,7 @@ func TestAccAWSCloudWatchEventArchive_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, events.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSCloudWatchEventArchiveDestroy,
 		Steps: []resource.TestStep{
@@ -107,6 +108,7 @@ func TestAccAWSCloudWatchEventArchive_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, events.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSCloudWatchEventArchiveDestroy,
 		Steps: []resource.TestStep{
@@ -136,6 +138,7 @@ func TestAccAWSCloudWatchEventArchive_disappears(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, events.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSCloudWatchEventArchiveDestroy,
 		Steps: []resource.TestStep{
@@ -207,6 +210,7 @@ func TestAccAWSCloudWatchEventArchive_retentionSetOnCreation(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, events.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSCloudWatchEventArchiveDestroy,
 		Steps: []resource.TestStep{

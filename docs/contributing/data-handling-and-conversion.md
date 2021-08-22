@@ -34,7 +34,7 @@ At the bottom of this documentation is a [Glossary section](#glossary), which ma
     - [Nested TypeList of TypeString and AWS List of String](#nested-typelist-of-typestring-and-aws-list-of-string)
     - [Nested TypeMap of TypeString and AWS Map of String](#nested-typemap-of-typestring-and-aws-map-of-string)
     - [Nested TypeSet of Resource and AWS List of Structure](#nested-typeset-of-resource-and-aws-list-of-structure)
-    - [Nested TypeList of TypeString and AWS List of String](#nested-typelist-of-typestring-and-aws-list-of-string-1)
+    - [Nested TypeSet of TypeString and AWS List of String](#nested-typeset-of-typestring-and-aws-list-of-string)
     - [Nested TypeString and AWS String](#nested-typestring-and-aws-string)
     - [Nested TypeString and AWS Timestamp](#nested-typestring-and-aws-timestamp)
 - [Further Guidelines](#further-guidelines)
@@ -365,7 +365,7 @@ To read:
 input := service.ExampleOperationInput{}
 
 if v, ok := d.GetOk("attribute_name"); ok && len(v.(map[string]interface{})) > 0 {
-    input.AttributeName = stringMapToPointers(v.(map[string]interface{}))
+    input.AttributeName = expandStringMap(v.(map[string]interface{}))
 }
 ```
 
@@ -433,13 +433,25 @@ d.Set("attribute_name", output.Thing.AttributeName)
 
 ### Root TypeString and AWS Timestamp
 
+To ensure that parsing the read string value does not fail, define `attribute_name`'s `schema.Schema` with an appropriate [`ValidateFunc`](https://www.terraform.io/docs/extend/schemas/schema-behaviors.html#validatefunc):
+
+```go
+"attribute_name": {
+    Type:         schema.TypeString,
+    // ...
+    ValidateFunc: validation.IsRFC3339Time,
+},
+```
+
 To read:
 
 ```go
 input := service.ExampleOperationInput{}
 
 if v, ok := d.GetOk("attribute_name"); ok {
-    input.AttributeName = aws.String(v.(string))
+    t, _ := time.Parse(time.RFC3339, v.(string))
+
+    input.AttributeName = aws.Time(t)
 }
 ```
 
@@ -596,7 +608,7 @@ func expandServiceStructure(tfMap map[string]interface{}) *service.Structure {
     // ...
 
     if v, ok := tfMap["nested_attribute_name"].([]interface{}); ok && len(v) > 0 {
-        apiObject.NestedAttributeName = expandServiceStructure(v[0].map[string]interface{})
+        apiObject.NestedAttributeName = expandServiceStructure(v[0].(map[string]interface{}))
     }
 
     // ...
@@ -655,7 +667,7 @@ To read:
 input := service.ExampleOperationInput{}
 
 if v, ok := tfMap["nested_attribute_name"].(map[string]interface{}); ok && len(v) > 0 {
-    apiObject.NestedAttributeName = stringMapToPointers(v)
+    apiObject.NestedAttributeName = expandStringMap(v)
 }
 ```
 
@@ -703,7 +715,7 @@ func flattenServiceStructure(apiObject *service.Structure) map[string]interface{
 }
 ```
 
-### Nested TypeList of TypeString and AWS List of String
+### Nested TypeSet of TypeString and AWS List of String
 
 To read:
 
@@ -765,6 +777,16 @@ func flattenServiceStructure(apiObject *service.Structure) map[string]interface{
 
 ### Nested TypeString and AWS Timestamp
 
+To ensure that parsing the read string value does not fail, define `nested_attribute_name`'s `schema.Schema` with an appropriate [`ValidateFunc`](https://www.terraform.io/docs/extend/schemas/schema-behaviors.html#validatefunc):
+
+```go
+"nested_attribute_name": {
+    Type:         schema.TypeString,
+    // ...
+    ValidateFunc: validation.IsRFC3339Time,
+},
+```
+
 To read:
 
 ```go
@@ -772,7 +794,9 @@ func expandServiceStructure(tfMap map[string]interface{}) *service.Structure {
     // ...
 
     if v, ok := tfMap["nested_attribute_name"].(string); ok && v != "" {
-        apiObject.NestedAttributeName = aws.String(v)
+        t, _ := time.Parse(time.RFC3339, v.(string))
+
+        apiObject.NestedAttributeName = aws.Time(t)
     }
 
     // ...

@@ -9,59 +9,13 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sagemaker"
+	"github.com/hashicorp/aws-sdk-go-base/tfawserr"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/terraform-providers/terraform-provider-aws/aws/internal/service/sagemaker/finder"
 )
-
-// Tests are serialized as SagmMaker Domain resources are limited to 1 per account by default.
-// SageMaker UserProfile and App depend on the Domain resources and as such are also part of the serialized test suite.
-func TestAccAWSSagemakerDomain_serial(t *testing.T) {
-	testCases := map[string]map[string]func(t *testing.T){
-		"Domain": {
-			"basic":                                testAccAWSSagemakerDomain_basic,
-			"disappears":                           testAccAWSSagemakerDomain_tags,
-			"tags":                                 testAccAWSSagemakerDomain_disappears,
-			"tensorboardAppSettings":               testAccAWSSagemakerDomain_tensorboardAppSettings,
-			"tensorboardAppSettingsWithImage":      testAccAWSSagemakerDomain_tensorboardAppSettingsWithImage,
-			"kernelGatewayAppSettings":             testAccAWSSagemakerDomain_kernelGatewayAppSettings,
-			"kernelGatewayAppSettings_customImage": testAccAWSSagemakerDomain_kernelGatewayAppSettings_customImage,
-			"jupyterServerAppSettings":             testAccAWSSagemakerDomain_jupyterServerAppSettings,
-			"kms":                                  testAccAWSSagemakerDomain_kms,
-			"securityGroup":                        testAccAWSSagemakerDomain_securityGroup,
-			"sharingSettings":                      testAccAWSSagemakerDomain_sharingSettings,
-		},
-		"UserProfile": {
-			"basic":                           testAccAWSSagemakerUserProfile_basic,
-			"disappears":                      testAccAWSSagemakerUserProfile_tags,
-			"tags":                            testAccAWSSagemakerUserProfile_disappears,
-			"tensorboardAppSettings":          testAccAWSSagemakerUserProfile_tensorboardAppSettings,
-			"tensorboardAppSettingsWithImage": testAccAWSSagemakerUserProfile_tensorboardAppSettingsWithImage,
-			"kernelGatewayAppSettings":        testAccAWSSagemakerUserProfile_kernelGatewayAppSettings,
-			"jupyterServerAppSettings":        testAccAWSSagemakerUserProfile_jupyterServerAppSettings,
-		},
-		"App": {
-			"basic":        testAccAWSSagemakerApp_basic,
-			"disappears":   testAccAWSSagemakerApp_tags,
-			"tags":         testAccAWSSagemakerApp_disappears,
-			"resourceSpec": testAccAWSSagemakerApp_resourceSpec,
-		},
-	}
-
-	for group, m := range testCases {
-		m := m
-		t.Run(group, func(t *testing.T) {
-			for name, tc := range m {
-				tc := tc
-				t.Run(name, func(t *testing.T) {
-					tc(t)
-				})
-			}
-		})
-	}
-}
 
 func init() {
 	resource.AddTestSweepers("aws_sagemaker_domain", &resource.Sweeper{
@@ -89,6 +43,7 @@ func testSweepSagemakerDomains(region string) error {
 			r := resourceAwsSagemakerDomain()
 			d := r.Data(nil)
 			d.SetId(aws.StringValue(domain.DomainId))
+			d.Set("retention_policy.0.home_efs_file_system", "Delete")
 			err = r.Delete(d, client)
 			if err != nil {
 				log.Printf("[ERROR] %s", err)
@@ -119,6 +74,7 @@ func testAccAWSSagemakerDomain_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, sagemaker.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSSagemakerDomainDestroy,
 		Steps: []resource.TestStep{
@@ -140,9 +96,10 @@ func testAccAWSSagemakerDomain_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"retention_policy"},
 			},
 		},
 	})
@@ -155,6 +112,7 @@ func testAccAWSSagemakerDomain_kms(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, sagemaker.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSSagemakerDomainDestroy,
 		Steps: []resource.TestStep{
@@ -166,9 +124,10 @@ func testAccAWSSagemakerDomain_kms(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"retention_policy"},
 			},
 		},
 	})
@@ -181,6 +140,7 @@ func testAccAWSSagemakerDomain_tags(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, sagemaker.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSSagemakerDomainDestroy,
 		Steps: []resource.TestStep{
@@ -193,9 +153,10 @@ func testAccAWSSagemakerDomain_tags(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"retention_policy"},
 			},
 			{
 				Config: testAccAWSSagemakerDomainConfigTags2(rName, "key1", "value1updated", "key2", "value2"),
@@ -225,6 +186,7 @@ func testAccAWSSagemakerDomain_securityGroup(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, sagemaker.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSSagemakerDomainDestroy,
 		Steps: []resource.TestStep{
@@ -237,9 +199,10 @@ func testAccAWSSagemakerDomain_securityGroup(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"retention_policy"},
 			},
 			{
 				Config: testAccAWSSagemakerDomainConfigSecurityGroup2(rName),
@@ -260,6 +223,7 @@ func testAccAWSSagemakerDomain_sharingSettings(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, sagemaker.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSSagemakerDomainDestroy,
 		Steps: []resource.TestStep{
@@ -275,9 +239,10 @@ func testAccAWSSagemakerDomain_sharingSettings(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"retention_policy"},
 			},
 		},
 	})
@@ -290,6 +255,7 @@ func testAccAWSSagemakerDomain_tensorboardAppSettings(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, sagemaker.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSSagemakerDomainDestroy,
 		Steps: []resource.TestStep{
@@ -304,9 +270,10 @@ func testAccAWSSagemakerDomain_tensorboardAppSettings(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"retention_policy"},
 			},
 		},
 	})
@@ -319,6 +286,7 @@ func testAccAWSSagemakerDomain_tensorboardAppSettingsWithImage(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, sagemaker.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSSagemakerDomainDestroy,
 		Steps: []resource.TestStep{
@@ -334,9 +302,10 @@ func testAccAWSSagemakerDomain_tensorboardAppSettingsWithImage(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"retention_policy"},
 			},
 		},
 	})
@@ -349,6 +318,7 @@ func testAccAWSSagemakerDomain_kernelGatewayAppSettings(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, sagemaker.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSSagemakerDomainDestroy,
 		Steps: []resource.TestStep{
@@ -363,9 +333,10 @@ func testAccAWSSagemakerDomain_kernelGatewayAppSettings(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"retention_policy"},
 			},
 		},
 	})
@@ -384,6 +355,7 @@ func testAccAWSSagemakerDomain_kernelGatewayAppSettings_customImage(t *testing.T
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, sagemaker.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSSagemakerDomainDestroy,
 		Steps: []resource.TestStep{
@@ -400,9 +372,10 @@ func testAccAWSSagemakerDomain_kernelGatewayAppSettings_customImage(t *testing.T
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"retention_policy"},
 			},
 		},
 	})
@@ -415,6 +388,7 @@ func testAccAWSSagemakerDomain_jupyterServerAppSettings(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, sagemaker.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSSagemakerDomainDestroy,
 		Steps: []resource.TestStep{
@@ -425,13 +399,14 @@ func testAccAWSSagemakerDomain_jupyterServerAppSettings(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "default_user_settings.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "default_user_settings.0.jupyter_server_app_settings.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "default_user_settings.0.jupyter_server_app_settings.0.default_resource_spec.#", "1"),
-					resource.TestCheckResourceAttr(resourceName, "default_user_settings.0.jupyter_server_app_settings.0.default_resource_spec.0.instance_type", "ml.t3.micro"),
+					resource.TestCheckResourceAttr(resourceName, "default_user_settings.0.jupyter_server_app_settings.0.default_resource_spec.0.instance_type", "system"),
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"retention_policy"},
 			},
 		},
 	})
@@ -444,6 +419,7 @@ func testAccAWSSagemakerDomain_disappears(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, sagemaker.EndpointsID),
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckAWSSagemakerDomainDestroy,
 		Steps: []resource.TestStep{
@@ -468,8 +444,13 @@ func testAccCheckAWSSagemakerDomainDestroy(s *terraform.State) error {
 		}
 
 		domain, err := finder.DomainByName(conn, rs.Primary.ID)
+
+		if tfawserr.ErrCodeEquals(err, sagemaker.ErrCodeResourceNotFound) {
+			continue
+		}
+
 		if err != nil {
-			return nil
+			return fmt.Errorf("error reading Sagemaker Domain (%s): %w", rs.Primary.ID, err)
 		}
 
 		domainArn := aws.StringValue(domain.DomainArn)
@@ -565,6 +546,10 @@ resource "aws_sagemaker_domain" "test" {
   default_user_settings {
     execution_role = aws_iam_role.test.arn
   }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
+  }
 }
 `, rName)
 }
@@ -586,6 +571,10 @@ resource "aws_sagemaker_domain" "test" {
   default_user_settings {
     execution_role = aws_iam_role.test.arn
   }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
+  }
 }
 `, rName)
 }
@@ -605,6 +594,10 @@ resource "aws_sagemaker_domain" "test" {
   default_user_settings {
     execution_role  = aws_iam_role.test.arn
     security_groups = [aws_security_group.test.id]
+  }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
   }
 }
 `, rName)
@@ -630,6 +623,10 @@ resource "aws_sagemaker_domain" "test" {
     execution_role  = aws_iam_role.test.arn
     security_groups = [aws_security_group.test.id, aws_security_group.test2.id]
   }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
+  }
 }
 `, rName)
 }
@@ -644,6 +641,10 @@ resource "aws_sagemaker_domain" "test" {
 
   default_user_settings {
     execution_role = aws_iam_role.test.arn
+  }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
   }
 
   tags = {
@@ -663,6 +664,10 @@ resource "aws_sagemaker_domain" "test" {
 
   default_user_settings {
     execution_role = aws_iam_role.test.arn
+  }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
   }
 
   tags = {
@@ -701,6 +706,10 @@ resource "aws_sagemaker_domain" "test" {
       s3_output_path         = "s3://${aws_s3_bucket.test.bucket}/sharing"
     }
   }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
+  }
 }
 `, rName)
 }
@@ -721,6 +730,10 @@ resource "aws_sagemaker_domain" "test" {
         instance_type = "ml.t3.micro"
       }
     }
+  }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
   }
 }
 `, rName)
@@ -749,6 +762,10 @@ resource "aws_sagemaker_domain" "test" {
       }
     }
   }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
+  }
 }
 `, rName)
 }
@@ -766,9 +783,13 @@ resource "aws_sagemaker_domain" "test" {
 
     jupyter_server_app_settings {
       default_resource_spec {
-        instance_type = "ml.t3.micro"
+        instance_type = "system"
       }
     }
+  }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
   }
 }
 `, rName)
@@ -790,6 +811,10 @@ resource "aws_sagemaker_domain" "test" {
         instance_type = "ml.t3.micro"
       }
     }
+  }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
   }
 }
 `, rName)
@@ -834,6 +859,10 @@ resource "aws_sagemaker_domain" "test" {
         image_name            = aws_sagemaker_image_version.test.image_name
       }
     }
+  }
+
+  retention_policy {
+    home_efs_file_system = "Delete"
   }
 }
 `, rName, baseImage)
