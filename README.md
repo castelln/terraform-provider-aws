@@ -4,6 +4,15 @@
 
 # Terraform Provider for AWS
 
+# IMPORTANT
+**Chances are that you do not need this provider**.
+
+This is not the official Terraform Provider for AWS, but a version which provides the ability to configure the AWS Client VPN Endpoint Self-Service portal and a secondary SAML provider.
+
+This configurability is only required for any organization attempting to use a VPN configuration that requires two SAML providers (e.g. when using single-ACS SAML providers like AWS IAM SAML).
+
+Please see [here](https://github.com/hashicorp/terraform-provider-aws/issues/16019) for more information.
+
 [![Forums][discuss-badge]][discuss]
 
 [discuss-badge]: https://img.shields.io/badge/discuss-terraform--aws-623CE4.svg?style=flat
